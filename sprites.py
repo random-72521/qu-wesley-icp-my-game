@@ -36,7 +36,7 @@ def collide_with_walls(sprite, group, dir):
             sprite.hit_rect.centery = sprite.pos.y
 
 
-class Player(Sprite): #create player class with Sprite as super class
+class Player(Sprite): #create player class inheriting Sprite with basic attributes and methods
     def __init__(self, game, x, y):
         self.groups = game.all_sprites
 
@@ -44,7 +44,7 @@ class Player(Sprite): #create player class with Sprite as super class
 
         self.game = game
 
-        self.spritesheet = SpriteSheet(path.join(self.game.image_dir, "stick_figure_anim1.png"))
+        self.spritesheet = SpriteSheet(path.join(self.game.image_dir, "bob_walk_anim1.png")) #provides raster images
 
         self.image = self.spritesheet.get_image(0, 0, TILESIZE, TILESIZE)
 
@@ -67,11 +67,14 @@ class Player(Sprite): #create player class with Sprite as super class
 
         self.hit_rect = PLAYER_HIT_RECT
 
+        #states for the player
         self.jumping = False
         self.moving = False
         
         self.last_update = 0
         self.current_frame = 0
+
+        self.coins = 0
 
         self.load_images()
 
@@ -106,15 +109,16 @@ class Player(Sprite): #create player class with Sprite as super class
         now = pg.time.get_ticks()
         if not self.jumping and not self.moving:
             if now - self.last_update > 350: #determines when to display next frame, 350ms between each
-                self.last_update = now
+                self.last_update = now 
                 self.current_frame = (self.current_frame + 1) % len(self.idle_frames) 
                 #^ creates animation loop
-
                 bottom = self.rect.bottom
+                left = self.rect.left
                 self.image = self.idle_frames[self.current_frame]
 
                 self.rect = self.image.get_rect()
                 self.rect.bottom = bottom
+                self.rect.left = left
 
         elif self.moving:
             if now - self.last_update > 350:
@@ -141,9 +145,117 @@ class Player(Sprite): #create player class with Sprite as super class
 
         self.rect.center = self.hit_rect.center
 
+        #checking if the player has collided with a sprite from all_coins
+        hits = pg.sprite.spritecollide(self, self.game.all_coins, True) 
+
+        if hits:
+            self.coins += 1
+            self.game.score += 1
+            print(f"{self.coins} coins")
+            self.game.pickup_coin_sound.play()
+
         self.animate()
 
-class Wall(Sprite): #create player class with Sprite as super class
+
+class Mob(Sprite): #class for enemy mobs
+    def __init__(self, game, x, y):
+        self.groups = game.all_sprites
+
+        Sprite.__init__(self, self.groups)
+
+        self.game = game
+
+        self.spritesheet = SpriteSheet(path.join(self.game.image_dir, "evil_pacman1.png")) #provides raster images
+
+        self.image = self.spritesheet.get_image(0, 0, TILESIZE, TILESIZE)
+
+        self.image.set_colorkey(BLACK) #makes all black color on the image
+
+        #self.image = pg.Surface((TILESIZE, TILESIZE))
+        #self.image.fill(WHITE)
+
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+        self.x = x * TILESIZE
+        self.y = y * TILESIZE
+
+        self.vx, self.vy = 0, 0
+
+        self.vel = vec(0, 0)
+        self.pos = vec(x, y) * TILESIZE
+
+        self.hit_rect = MOB_HIT_RECT
+
+        #states for the mob
+        self.jumping = False
+        self.moving = False
+        
+        self.last_update = 0
+        self.current_frame = 0
+
+        self.load_images()
+
+        print("mob instance created")
+
+
+    def jump(self):
+        pass
+
+    def load_images(self):
+        self.idle_frames = [self.spritesheet.get_image(0, 0, TILESIZE, TILESIZE), self.spritesheet.get_image(32,0, TILESIZE,TILESIZE)]
+
+    def animate(self):
+        now = pg.time.get_ticks()
+        if not self.jumping and not self.moving: #animation when idle
+            if now - self.last_update > 350: #determines when to display next frame, 350ms between each
+                self.last_update = now 
+                self.current_frame = (self.current_frame + 1) % len(self.idle_frames) 
+                #^ creates animation loop
+                bottom = self.rect.bottom
+                left = self.rect.left
+                self.image = self.idle_frames[self.current_frame]
+
+                self.rect = self.image.get_rect()
+                self.rect.bottom = bottom
+                self.rect.left = left
+
+        elif self.moving: #animation when moving
+            if now - self.last_update > 350:
+                self.last_update = now
+                self.current_frame = (self.current_frame + 1) % len(self.moving_frames)
+
+                bottom = self.rect.bottom
+                self.image = self.moving_frames[self.current_frame]
+
+                self.rect = self.image.get_rect()
+                self.rect.bottom = bottom
+
+    def follow(self, obj):
+        direction = vec(obj.rect.centerx - self.rect.centerx, obj.rect.centery - self.rect.centery)
+        if direction.length() > 0:
+            direction = direction.normalize()
+        self.vel = direction * MOB_SPEED
+
+    def update(self): #update mob position
+        self.follow(self.game.player)
+
+        self.rect.center = self.pos
+        self.pos += self.vel * self.game.dt
+
+        self.hit_rect.centerx = self.pos.x
+        collide_with_walls(self, self.game.all_walls, "x")
+
+        self.hit_rect.centery = self.pos.y
+        collide_with_walls(self, self.game.all_walls, "y")
+
+        self.rect.center = self.hit_rect.center
+
+        self.animate()
+
+
+class Wall(Sprite): 
     def __init__(self, game, x, y):
         self.groups = game.all_sprites, game.all_walls
 
@@ -165,3 +277,29 @@ class Wall(Sprite): #create player class with Sprite as super class
         self.rect.y = self.y
 
         print("wall instance created")
+
+
+class Coin(Sprite): #coin class
+    def __init__(self, game, x, y):
+        self.groups = game.all_sprites, game.all_coins
+
+        Sprite.__init__(self, self.groups)
+
+        self.game = game
+
+        self.image = pg.Surface((TILESIZE, TILESIZE))
+        pg.draw.circle(self.image, GOLD, (TILESIZE / 2, TILESIZE / 2), TILESIZE / 2)
+
+        self.image.set_colorkey(BLACK)
+
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+        self.x = x * TILESIZE
+        self.y = y * TILESIZE
+
+        self.rect.x = self.x
+        self.rect.y = self.y
+
+        print("coin instance created")
