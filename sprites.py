@@ -5,6 +5,8 @@ from settings import *
 from utils import *
 from os import path
 
+from random import randint
+
 vec = pg.math.Vector2 #initializing vector
 
 def collide_hit_rect(one, two): #returns bool if one is colliding with two
@@ -153,6 +155,9 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
             self.game.score += 1
             print(f"{self.coins} coins")
             self.game.pickup_coin_sound.play()
+            for i in range(100):
+                Particle(self.game, hits[0].rect.x, hits[0].rect.y)
+                
 
         self.animate()
 
@@ -303,3 +308,43 @@ class Coin(Sprite): #coin class
         self.rect.y = self.y
 
         print("coin instance created")
+
+class Particle(Sprite): 
+    def __init__(self, game, x, y):
+        self.groups = game.all_sprites, game.all_walls
+
+        Sprite.__init__(self, self.groups)
+
+        self.game = game
+
+        self.image = pg.Surface((TILESIZE, TILESIZE))
+        self.image.fill(GOLD)
+
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+        self.vel = vec(randint(-180, 180), randint(-180, 180))
+        self.pos = vec(x, y)
+
+        self.x = x * TILESIZE 
+        self.y = y * TILESIZE 
+
+        self.rect.center = self.pos
+        self.rect.x = self.x
+        self.rect.y = self.y
+
+        self.speed = 15
+        self.countdown = Cooldown()
+        self.countdown.event_time = floor(pg.time.get_ticks() / 1000)
+
+        print("particle instance created")
+
+    def update(self):
+        self.countdown.ticking()
+        self.pos += self.vel * self.speed * self.game.dt
+        if self.countdown.delta > 1:
+            self.kill()
+
+        self.rect.x = self.pos.x
+        self.rect.y = self.pos.y
