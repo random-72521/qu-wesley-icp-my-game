@@ -46,14 +46,11 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
 
         self.game = game
 
-        self.spritesheet = SpriteSheet(path.join(self.game.image_dir, "bob_walk_anim1.png")) #provides raster images
+        self.spritesheet = SpriteSheet(path.join(self.game.image_dir, "bob_walk_anim1.png")) #provides raster (pixel) images
 
         self.image = self.spritesheet.get_image(0, 0, TILESIZE, TILESIZE)
 
-        self.image.set_colorkey(BLACK) #makes all black color on the image
-
-        #self.image = pg.Surface((TILESIZE, TILESIZE))
-        #self.image.fill(WHITE)
+        self.image.set_colorkey(BLACK) #makes all black color on the image transparent
 
         self.rect = self.image.get_rect()
         self.rect.x = x
@@ -65,6 +62,7 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
         self.vx, self.vy = 0, 0
 
         self.vel = vec(0, 0)
+        self.acc = vec(0, 0)
         self.pos = vec(x, y) * TILESIZE
 
         self.hit_rect = PLAYER_HIT_RECT
@@ -76,6 +74,7 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
         self.last_update = 0
         self.current_frame = 0
 
+        self.cofric = PLAYER_FRIC #coefficient of friction for the player, default is decided by PLAYER_FRIC in settings
         self.coins = 0
 
         self.load_images()
@@ -87,16 +86,13 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
         keys = pg.key.get_pressed()
         #keybinds, wasd
         if keys[pg.K_w]: 
-            self.vel.y = -PLAYER_SPEED
-
+            self.acc.y = -PLAYER_ACC
         if keys[pg.K_a]:
-            self.vel.x = -PLAYER_SPEED
-
+            self.acc.x = -PLAYER_ACC
         if keys[pg.K_s]:
-            self.vel.y = PLAYER_SPEED
-
+            self.acc.y = PLAYER_ACC
         if keys[pg.K_d]:
-            self.vel.x = PLAYER_SPEED
+            self.acc.x = PLAYER_ACC
 
         if self.vel.x != 0 and self.vel.y != 0: #checks if player is moving diagonally
             self.vel *= 0.7071
@@ -134,10 +130,22 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
                 self.rect.bottom = bottom
 
     def update(self): #update player position
-        self.get_keys()
+        self.animate()
+        self.get_keys()  
+
+        tile_hits = pg.sprite.spritecollide(self, self.game.all_tiles, False)
+        if tile_hits:
+            if tile_hits[0].variant == "ice":
+                self.cofric = -0.001 #lowers coefficient of friction if player touches ice
+                print("touched ice")
+            else:
+                self.cofric = -0.1 
 
         self.rect.center = self.pos
-        self.pos += self.vel * self.game.dt
+        self.pos += self.vel * self.game.dt + 0.5 * self.acc * (self.game.dt ** 2) #1d kinematic equation for accurately finding new position
+        self.acc.x += self.vel.x * self.cofric
+        self.acc.y += self.vel.y * self.cofric
+        self.vel += self.acc
 
         self.hit_rect.centerx = self.pos.x
         collide_with_walls(self, self.game.all_walls, "x")
@@ -157,9 +165,6 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
             self.game.pickup_coin_sound.play()
             for i in range(100):
                 Particle(self.game, hits[0].rect.x, hits[0].rect.y)
-                
-
-        self.animate()
 
 
 class Mob(Sprite): #class for enemy mobs
@@ -348,3 +353,24 @@ class Particle(Sprite):
 
         self.rect.x = self.pos.x
         self.rect.y = self.pos.y
+
+
+class FloorTile(Sprite):
+    def __init__(self, game, x, y, color):
+        self.groups = game.all_sprites, game.all_tiles
+        Sprite.__init__(self, self.groups)
+
+        self.game = game
+
+        self.image = pg.Surface((TILESIZE, TILESIZE))
+        self.image.fill(color)
+
+        self.rect = self.image.get_rect()
+        self.vel = vec(0,0) 
+        self.pos = vec(x,y) * TILESIZE
+        self.rect.center = self.pos
+
+        self.variant = ""
+
+        print("tile instance created")
+

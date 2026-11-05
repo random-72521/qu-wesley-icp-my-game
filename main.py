@@ -35,8 +35,8 @@ class Game:
 
         self.clock = pg.time.Clock() #initializing clock
 
-        self.score = 0
-        self.highscore = 0
+        self.score = 0 #current score on this run
+        self.highscore = 0 #all time high score
 
         print("game instance created")
 
@@ -48,17 +48,17 @@ class Game:
         self.game_save_file = path.join(self.game_dir,"highscore.txt")
         self.pickup_coin_sound = pg.mixer.Sound(path.join(self.sound_dir, "coin_pickup.wav"))
 
-        try:
+        try: #creating highscore.txt if it does not exist
             with open(self.game_save_file, 'x', encoding="utf-8") as file:
                 file.write("Hello, World!")
             print("File created successfully.")
         except FileExistsError:
             print("File already exists. No action taken.")
 
-        # open file and try to set high score with except set high score to zero
+        #open file and try to set self.highscore unless highscore is 0
         with open(self.game_save_file, 'r') as f:
             try:
-                self.highscore = int(f.read())
+                self.highscore = int(f.read()) 
                 print('high score set')
             except:
                 self.highscore = 0
@@ -70,6 +70,7 @@ class Game:
         self.all_sprites = pg.sprite.Group() #groups for different sprites
         self.all_walls = pg.sprite.Group()
         self.all_coins = pg.sprite.Group()
+        self.all_tiles = pg.sprite.Group()
 
         #draws the screen based on .txt file
         for row, tiles in enumerate(self.map.data):
@@ -82,6 +83,10 @@ class Game:
                     self.mob = Mob(self, col, row)
                 elif tile == "C":
                     self.coin = Coin(self, col, row)
+                elif tile == "I":
+                    self.ice = FloorTile(self, col, row, ICE_BLUE)
+                    self.ice.variant = "ice"
+
 
         #pg.mixer.music.load(path.join(self.sound_dir, "background_music.wav"))
         #pg.mixer.music.play(loops = -1)
@@ -108,7 +113,7 @@ class Game:
     def update(self): #handles processing of changes based on input
         self.all_sprites.update()
 
-    def draw_text(self, text, size, color, x, y): 
+    def draw_text(self, text, size, color, x, y): #writes text anywhere on the screen
         font_name = pg.font.match_font("arial")
         font = pg.font.Font(font_name, size) #instanantiate Font class
 
