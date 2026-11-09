@@ -124,7 +124,7 @@ class Game:
         self.screen.blit(text_surface, text_rect)
 
     def draw(self):
-        self.screen.fill(BLUE)
+        self.screen.fill(GRAY)
         self.all_sprites.draw(self.screen)
         self.draw_text(f"FPS: {str(floor(1/self.dt))}", 24, WHITE, WIDTH / 2, HEIGHT / 2)
         self.draw_text(f"Coins: {self.player.coins}", 24, WHITE, WIDTH / 2, HEIGHT / 9)

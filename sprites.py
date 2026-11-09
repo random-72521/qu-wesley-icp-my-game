@@ -94,9 +94,6 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
         if keys[pg.K_d]:
             self.acc.x = PLAYER_ACC
 
-        if self.vel.x != 0 and self.vel.y != 0: #checks if player is moving diagonally
-            self.vel *= 0.7071
-
     def jump(self):
         pass
 
@@ -133,6 +130,12 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
         self.animate()
         self.get_keys()  
 
+        self.acc.x += self.vel.x * self.cofric
+        self.acc.y += self.vel.y * self.cofric
+        self.vel += self.acc
+
+        self.pos += self.vel * self.game.dt + 0.5 * self.acc * (self.game.dt ** 2) #1d kinematic equation for accurately finding new position
+
         tile_hits = pg.sprite.spritecollide(self, self.game.all_tiles, False)
         if tile_hits:
             if tile_hits[0].variant == "ice":
@@ -142,10 +145,6 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
                 self.cofric = -0.1 
 
         self.rect.center = self.pos
-        self.pos += self.vel * self.game.dt + 0.5 * self.acc * (self.game.dt ** 2) #1d kinematic equation for accurately finding new position
-        self.acc.x += self.vel.x * self.cofric
-        self.acc.y += self.vel.y * self.cofric
-        self.vel += self.acc
 
         self.hit_rect.centerx = self.pos.x
         collide_with_walls(self, self.game.all_walls, "x")
@@ -209,10 +208,6 @@ class Mob(Sprite): #class for enemy mobs
 
         print("mob instance created")
 
-
-    def jump(self):
-        pass
-
     def load_images(self):
         self.idle_frames = [self.spritesheet.get_image(0, 0, TILESIZE, TILESIZE), self.spritesheet.get_image(32,0, TILESIZE,TILESIZE)]
 
@@ -274,7 +269,7 @@ class Wall(Sprite):
         self.game = game
 
         self.image = pg.Surface((TILESIZE, TILESIZE))
-        self.image.fill(GREEN)
+        self.image.fill(DARK_GRAY)
 
         self.rect = self.image.get_rect()
         self.rect.x = x
