@@ -18,7 +18,7 @@ DARK_GRAY = (85, 85, 85)
 #---------Player Settings---------
 PLAYER_HIT_RECT = pg.Rect(0, 0, TILESIZE - 5, TILESIZE - 5)
 PLAYER_FRIC = -0.1
-PLAYER_ACC = 250
+PLAYER_ACC = 5
 
 #---------Mob Settings---------
 MOB_SPEED = 150

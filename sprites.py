@@ -128,13 +128,15 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
 
     def update(self): #update player position
         self.animate()
+        self.acc = vec(0, 0)
         self.get_keys()  
 
-        self.acc.x += self.vel.x * self.cofric
-        self.acc.y += self.vel.y * self.cofric
-        self.vel += self.acc
+        self.acc += self.vel * self.cofric
 
-        self.pos += self.vel * self.game.dt + 0.5 * self.acc * (self.game.dt ** 2) #1d kinematic equation for accurately finding new position
+        self.vel += self.acc
+        print(self.vel.x * self.cofric)
+
+        self.pos += self.vel + 0.5 * self.acc #1d kinematic equation for accurately finding new position
 
         tile_hits = pg.sprite.spritecollide(self, self.game.all_tiles, False)
         if tile_hits:
