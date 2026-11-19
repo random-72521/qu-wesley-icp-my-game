@@ -6,10 +6,10 @@
     Process
     Output
 
-    GOALS:
-    RULES:
-    FEEDBACK:
-    FREEDOM:
+    GOALS: Escape the dungeons
+    RULES: No going back
+    FEEDBACK: Red screen when you take damage
+    FREEDOM: Move around and buy tools
 """
 
 #import modules
@@ -71,6 +71,8 @@ class Game:
         self.all_walls = pg.sprite.Group()
         self.all_coins = pg.sprite.Group()
         self.all_tiles = pg.sprite.Group()
+        self.all_projectiles = pg.sprite.Group()
+        self.all_weapons = pg.sprite.Group()
 
         #draws the screen based on .txt file
         for row, tiles in enumerate(self.map.data):
@@ -86,6 +88,9 @@ class Game:
                 elif tile == "I":
                     self.ice = FloorTile(self, col, row, ICE_BLUE)
                     self.ice.variant = "ice"
+                elif tile == "m":
+                    self.mud = FloorTile(self, col, row, BROWN)
+                    self.mud.variant = "mud"
 
 
         #pg.mixer.music.load(path.join(self.sound_dir, "background_music.wav"))

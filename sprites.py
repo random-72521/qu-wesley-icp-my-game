@@ -1,4 +1,3 @@
-
 import pygame as pg
 from pygame.sprite import Sprite #Sprite is a base class we can inherit basic attributes and methods from
 from settings import *
@@ -48,9 +47,13 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
 
         self.spritesheet = SpriteSheet(path.join(self.game.image_dir, "bob_walk_anim1.png")) #provides raster (pixel) images
 
-        self.image = self.spritesheet.get_image(0, 0, TILESIZE, TILESIZE)
+        self.up_sprite = SpriteSheet(path.join(self.game.image_dir, "facing_up.png")) 
+        self.right_sprite = SpriteSheet(path.join(self.game.image_dir, "facing_right.png")) 
+        self.left_sprite = SpriteSheet(path.join(self.game.image_dir, "facing_left.png")) 
+        self.down_sprite = SpriteSheet(path.join(self.game.image_dir, "facing_down.png")) 
 
-        self.image.set_colorkey(BLACK) #makes all black color on the image transparent
+        self.image = self.right_sprite.get_image(0, 0, TILESIZE, TILESIZE)
+        #self.image.set_colorkey(BLACK) #makes all black color on the image transparent
 
         self.rect = self.image.get_rect()
         self.rect.x = x
@@ -68,8 +71,10 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
         self.hit_rect = PLAYER_HIT_RECT
 
         #states for the player
-        self.jumping = False
+        self.dashing = False
         self.moving = False
+
+        self.last = pg.time.get_ticks()
         
         self.last_update = 0
         self.current_frame = 0
@@ -79,30 +84,68 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
 
         self.load_images()
 
+        self.last_face = "right"
+
+        self.weapon = Weapon(self.game, "hero_sword", "sword", self)
+
         print("player instance created")
 
     def get_keys(self): #gets player input
-        self.vel = vec(0, 0)
         keys = pg.key.get_pressed()
         #keybinds, wasd
         if keys[pg.K_w]: 
             self.acc.y = -PLAYER_ACC
+            self.last_face = "up"
         if keys[pg.K_a]:
             self.acc.x = -PLAYER_ACC
+            self.last_face = "left"
         if keys[pg.K_s]:
             self.acc.y = PLAYER_ACC
+            self.last_face = "down"
         if keys[pg.K_d]:
             self.acc.x = PLAYER_ACC
+            self.last_face = "right"
+        if keys[pg.K_j]:
+            if self.weapon.type == "pewpew":
+                self.shoot(self.last_face)
+            elif self.weapon.type == "sword":
+                self.weapon.slash()
+        if keys[pg.K_LSHIFT]:
+            self.dash()
 
-    def jump(self):
-        pass
+    def dash(self):
+        now = pg.time.get_ticks()
+    
+        if now - self.last >= PLAYER_DASH_COOLDOWN:
+            if self.last_face == "right":
+                self.vel += (15, 0)
+            elif self.last_face == "up":
+                self.vel += (0, -15)
+            elif self.last_face == "left":
+                self.vel += (-15, 0)
+            elif self.last_face == "down":
+                self.vel += (0, 15)
+
+        self.last = now
+
+
+
+    def shoot(self, direction):
+        if direction == "up":
+            Projectile(self.game, self.hit_rect.centerx, self.rect.centery, TILESIZE/8, TILESIZE/8, 0, -10)
+        if direction == "right":
+            Projectile(self.game, self.hit_rect.centerx, self.rect.centery, TILESIZE/8, TILESIZE/8, 10, 0)
+        if direction == "down":
+            Projectile(self.game, self.hit_rect.centerx, self.rect.centery, TILESIZE/8, TILESIZE/8, 0, 10)
+        if direction == "left":
+            Projectile(self.game, self.hit_rect.centerx, self.rect.centery, TILESIZE/8, TILESIZE/8, -10, 0)
 
     def load_images(self):
         self.idle_frames = [self.spritesheet.get_image(0, 0, TILESIZE, TILESIZE), self.spritesheet.get_image(32,0, TILESIZE,TILESIZE)]
 
     def animate(self):
         now = pg.time.get_ticks()
-        if not self.jumping and not self.moving:
+        if not self.dashing and not self.moving:
             if now - self.last_update > 350: #determines when to display next frame, 350ms between each
                 self.last_update = now 
                 self.current_frame = (self.current_frame + 1) % len(self.idle_frames) 
@@ -129,22 +172,27 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
     def update(self): #update player position
         self.animate()
         self.acc = vec(0, 0)
-        self.get_keys()  
+        self.get_keys()
 
         self.acc += self.vel * self.cofric
-
         self.vel += self.acc
-        print(self.vel.x * self.cofric)
-
         self.pos += self.vel + 0.5 * self.acc #1d kinematic equation for accurately finding new position
+
+        if self.last_face == "up":
+            self.image = self.up_sprite.get_image(0, 0, TILESIZE, TILESIZE)
+
 
         tile_hits = pg.sprite.spritecollide(self, self.game.all_tiles, False)
         if tile_hits:
             if tile_hits[0].variant == "ice":
                 self.cofric = -0.001 #lowers coefficient of friction if player touches ice
-                print("touched ice")
+            elif tile_hits[0].variant == "mud":
+                self.cofric = -0.5
             else:
                 self.cofric = -0.1 
+        else:
+            self.cofric = -0.1
+        
 
         self.rect.center = self.pos
 
@@ -164,8 +212,8 @@ class Player(Sprite): #create player class inheriting Sprite with basic attribut
             self.game.score += 1
             print(f"{self.coins} coins")
             self.game.pickup_coin_sound.play()
-            for i in range(100):
-                Particle(self.game, hits[0].rect.x, hits[0].rect.y)
+            #for i in range(100):
+            #    Particle(self.game, hits[0].rect.x, hits[0].rect.y)
 
 
 class Mob(Sprite): #class for enemy mobs
@@ -205,6 +253,8 @@ class Mob(Sprite): #class for enemy mobs
         
         self.last_update = 0
         self.current_frame = 0
+
+        self.hp = 100
 
         self.load_images()
 
@@ -250,6 +300,20 @@ class Mob(Sprite): #class for enemy mobs
 
         self.rect.center = self.pos
         self.pos += self.vel * self.game.dt
+
+        hits = pg.sprite.spritecollide(self, self.game.all_projectiles, True) 
+        if hits:
+            self.hp -= 1
+
+        if self.hp <= 0:
+            self.kill()
+
+        hits = pg.sprite.spritecollide(self, self.game.all_weapons, False) 
+        if hits:
+            self.hp -= 10
+
+        if self.hp <= 0:
+            self.kill()
 
         self.hit_rect.centerx = self.pos.x
         collide_with_walls(self, self.game.all_walls, "x")
@@ -370,4 +434,73 @@ class FloorTile(Sprite):
         self.variant = ""
 
         print("tile instance created")
+
+class Projectile(Sprite):
+    def __init__(self, game, x, y, w, h, sx, sy):
+        self.groups = game.all_sprites, game.all_projectiles
+        Sprite.__init__(self, self.groups)
+
+        self.image = pg.Surface((w, h))
+        self.image.set_colorkey(BLACK)
+        self.rect = self.image.get_rect()
+
+        self.radius = TILESIZE / 8
+        pg.draw.circle(self.image, GOLD, self.rect.center, self.radius)
+
+        self.rect.x = x
+        self.rect.y = y
+
+        self.speed_x = sx
+        self.speed_y = sy
+
+        self.fired = False
+
+    def update(self):
+        self.rect.x += self.speed_x
+        self.rect.y += self.speed_y
+
+        if self.rect.y < 0 or self.rect.y > HEIGHT:
+            self.kill()
+
+        if self.rect.x < 0 or self.rect.x > WIDTH:
+            self.kill()
+
+class Weapon(Sprite):
+    def __init__(self, game, sprite, type, player):
+        self.groups = game.all_sprites, game.all_weapons
+        Sprite.__init__(self, self.groups)
+
+        self.game = game
+
+        self.weapon_image = SpriteSheet(path.join(self.game.image_dir, f"{sprite}.png")) 
+        self.image = self.weapon_image.get_image(0, 0, TILESIZE, TILESIZE)
+        self.image.set_colorkey(BLACK)
+
+        self.type = type
+
+        self.player = player
+
+        self.rect = self.image.get_rect()
+        self.rect.x = self.player.rect.x
+        self.rect.y = self.player.rect.y
+
+        self.attacking = False
+
+    def update(self):
+        if self.player.last_face == "right":
+            self.rect.x = self.player.rect.x + 32
+            self.rect.y = self.player.rect.y
+        elif self.player.last_face == "up":
+            self.rect.x = self.player.rect.x
+            self.rect.y = self.player.rect.y - 32
+        elif self.player.last_face == "left":
+            self.rect.x = self.player.rect.x - 32
+            self.rect.y = self.player.rect.y
+        elif self.player.last_face == "down":
+            self.rect.x = self.player.rect.x
+            self.rect.y = self.player.rect.y + 32
+
+    def slash(self):
+        self.attacking = not self.attacking
+
 
